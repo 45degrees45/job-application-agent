@@ -1,0 +1,540 @@
+{
+  "name": "Job Application Agent V1",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        260,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "job_url",
+              "value": ""
+            },
+            {
+              "name": "job_description",
+              "value": "Paste the full job description here if you are not using a URL."
+            },
+            {
+              "name": "company",
+              "value": "Target Company"
+            },
+            {
+              "name": "role",
+              "value": "Target Role"
+            },
+            {
+              "name": "style_guide",
+              "value": "No fluff. Metrics over adjectives. Ownership over responsibility. Short, sharp sentences. Avoid generic excitement language."
+            },
+            {
+              "name": "recent_learnings",
+              "value": "Prefer direct statements. Use proof and outcomes. Remove filler. Do not overstate."
+            },
+            {
+              "name": "resume_facts",
+              "value": "Joseph T C. 18+ years across product, founder, operations, international execution, and AI automation. Built products end-to-end. Managed cross-functional teams. Strong in process automation using n8n and AI workflows."
+            }
+          ]
+        }
+      },
+      "id": "set-input",
+      "name": "Set - Job Input",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        500,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.job_url }}",
+              "operation": "notEmpty"
+            }
+          ]
+        }
+      },
+      "id": "if-has-url",
+      "name": "IF - Has Job URL",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        740,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.job_url }}",
+        "responseFormat": "string",
+        "options": {}
+      },
+      "id": "fetch-job-page",
+      "name": "HTTP Request - Fetch Job Page",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        980,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const html = $json.body || $json.data || '';\nconst cleaned = html\n  .replace(/<script[\\s\\S]*?<\\/script>/gi, ' ')\n  .replace(/<style[\\s\\S]*?<\\/style>/gi, ' ')\n  .replace(/<[^>]+>/g, ' ')\n  .replace(/&nbsp;/g, ' ')\n  .replace(/&amp;/g, '&')\n  .replace(/\\s+/g, ' ')\n  .trim()\n  .slice(0, 18000);\n\nreturn [{\n  json: {\n    ...$('Set - Job Input').first().json,\n    job_description: cleaned || $('Set - Job Input').first().json.job_description\n  }\n}];"
+      },
+      "id": "clean-html",
+      "name": "Code - Clean HTML",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1220,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": false,
+        "values": {
+          "string": [
+            {
+              "name": "input_mode",
+              "value": "url"
+            }
+          ]
+        }
+      },
+      "id": "normalize-url",
+      "name": "Set - Normalize URL Payload",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        1460,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": false,
+        "values": {
+          "string": [
+            {
+              "name": "input_mode",
+              "value": "pasted_text"
+            }
+          ]
+        }
+      },
+      "id": "normalize-text",
+      "name": "Set - Normalize Text Payload",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        980,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.GROQ_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  model: $env.GROQ_MODEL || 'llama-3.3-70b-versatile',\n  response_format: { type: 'json_object' },\n  messages: [\n    {\n      role: 'system',\n      content: 'You are evaluating a role for Joseph T C. Be strict. No fluff. Metrics and evidence over adjectives. If fit score is below 7, recommend skip. Return valid JSON only.'\n    },\n    {\n      role: 'user',\n      content: `Joseph profile:\\n${$json.resume_facts}\\n\\nBase profiles available:\\n1. product_ai_automation\\n2. founders_office_strategy\\n\\nCompany: ${$json.company}\\nRole: ${$json.role}\\nJob description:\\n${$json.job_description}\\n\\nReturn JSON with keys: base_profile_used, fit_score, strengths, gaps, decision, reasoning.`\n    }\n  ]\n} }}",
+        "options": {}
+      },
+      "id": "score-role",
+      "name": "HTTP Request - Score Role",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1720,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $json.choices?.[0]?.message?.content || '{}';\nlet parsed;\ntry {\n  parsed = JSON.parse(raw);\n} catch (e) {\n  parsed = {\n    base_profile_used: 'product_ai_automation',\n    fit_score: 0,\n    strengths: [],\n    gaps: ['Model output was not valid JSON'],\n    decision: 'skip',\n    reasoning: raw\n  };\n}\n\nreturn [{\n  json: {\n    ...$('IF - Has Job URL').first().json,\n    ...parsed,\n    strengths: Array.isArray(parsed.strengths) ? parsed.strengths : [],\n    gaps: Array.isArray(parsed.gaps) ? parsed.gaps : []\n  }\n}];"
+      },
+      "id": "parse-score",
+      "name": "Code - Parse Score JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1960,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ Number($json.fit_score || 0) }}",
+              "operation": "largerEqual",
+              "value2": 7
+            }
+          ]
+        }
+      },
+      "id": "if-score-gate",
+      "name": "IF - Score Gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ `https://generativelanguage.googleapis.com/v1beta/models/${$env.GEMINI_MODEL || 'gemini-2.0-flash'}:generateContent?key=${$env.GEMINI_API_KEY}` }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  system_instruction: {\n    parts: [\n      {\n        text: 'You are tailoring Joseph T C\\'s resume. No fluff. Metrics over adjectives. Ownership over vague responsibility. Short, direct bullets. Do not fabricate anything. Return plain text only.'\n      }\n    ]\n  },\n  contents: [\n    {\n      parts: [\n        {\n          text: `Base profile: ${$json.base_profile_used}\\n\\nJob description:\\n${$json.job_description}\\n\\nJoseph style guide:\\n${$json.style_guide}\\n\\nRecent learnings:\\n${$json.recent_learnings}\\n\\nSource resume facts:\\n${$json.resume_facts}\\n\\nOutput format:\\nSummary\\nCore strengths\\nExperience bullets\\nSelected tools / domains`\n        }\n      ]\n    }\n  ]\n} }}",
+        "options": {}
+      },
+      "id": "resume-tailor",
+      "name": "HTTP Request - Resume Tailor",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        2440,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { ...$('Code - Parse Score JSON').first().json, generated_resume: $json.candidates?.[0]?.content?.parts?.[0]?.text || '' } }];"
+      },
+      "id": "parse-resume",
+      "name": "Code - Parse Resume",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2680,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ `https://generativelanguage.googleapis.com/v1beta/models/${$env.GEMINI_MODEL || 'gemini-2.0-flash'}:generateContent?key=${$env.GEMINI_API_KEY}` }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  system_instruction: {\n    parts: [\n      {\n        text: 'Write a short, high-impact cover letter for Joseph T C. Max 180 words. No fluff. Specific to company and role. Avoid generic excitement language. Return plain text only.'\n      }\n    ]\n  },\n  contents: [\n    {\n      parts: [\n        {\n          text: `Company: ${$json.company}\\nRole: ${$json.role}\\nBase profile: ${$json.base_profile_used}\\n\\nJob description:\\n${$json.job_description}\\n\\nResume draft:\\n${$json.generated_resume}\\n\\nStyle guide:\\n${$json.style_guide}`\n        }\n      ]\n    }\n  ]\n} }}",
+        "options": {}
+      },
+      "id": "cover-letter",
+      "name": "HTTP Request - Cover Letter",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        2920,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { ...$('Code - Parse Resume').first().json, generated_cover_letter: $json.candidates?.[0]?.content?.parts?.[0]?.text || '' } }];"
+      },
+      "id": "parse-cover",
+      "name": "Code - Parse Cover Letter",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3160,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ `https://generativelanguage.googleapis.com/v1beta/models/${$env.GEMINI_MODEL || 'gemini-2.0-flash'}:generateContent?key=${$env.GEMINI_API_KEY}` }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  system_instruction: {\n    parts: [\n      {\n        text: 'Write a concise job application email for Joseph T C. Return JSON only with keys subject and body. Direct. Short. No filler. Sound credible and senior.'\n      }\n    ]\n  },\n  generationConfig: {\n    responseMimeType: 'application/json'\n  },\n  contents: [\n    {\n      parts: [\n        {\n          text: `Company: ${$json.company}\\nRole: ${$json.role}\\n\\nJob description:\\n${$json.job_description}\\n\\nResume draft:\\n${$json.generated_resume}\\n\\nCover letter draft:\\n${$json.generated_cover_letter}`\n        }\n      ]\n    }\n  ]\n} }}",
+        "options": {}
+      },
+      "id": "email-writer",
+      "name": "HTTP Request - Email Writer",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        3400,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $json.candidates?.[0]?.content?.parts?.[0]?.text || '{}';\nlet parsed;\ntry {\n  parsed = JSON.parse(raw);\n} catch (e) {\n  parsed = { subject: '', body: raw };\n}\n\nconst source = $('Code - Parse Cover Letter').first().json;\n\nreturn [{\n  json: {\n    id: `${Date.now()}`,\n    date: new Date().toISOString(),\n    company: source.company,\n    role: source.role,\n    job_url: source.job_url,\n    input_mode: source.input_mode,\n    job_description: source.job_description,\n    base_profile_used: source.base_profile_used,\n    fit_score: source.fit_score,\n    strengths: source.strengths,\n    gaps: source.gaps,\n    decision: source.decision,\n    reasoning: source.reasoning,\n    generated_resume: source.generated_resume,\n    generated_cover_letter: source.generated_cover_letter,\n    generated_email_subject: parsed.subject || '',\n    generated_email_body: parsed.body || '',\n    ready_for_google_sheets: {\n      company: source.company,\n      role: source.role,\n      job_url: source.job_url,\n      base_profile_used: source.base_profile_used,\n      fit_score: source.fit_score,\n      fit_gaps: JSON.stringify(source.gaps || []),\n      decision: source.decision,\n      generated_resume: source.generated_resume,\n      generated_cover_letter: source.generated_cover_letter,\n      generated_email_subject: parsed.subject || '',\n      generated_email_body: parsed.body || ''\n    }\n  }\n}];"
+      },
+      "id": "final-output",
+      "name": "Code - Final Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3640,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    id: `${Date.now()}`,\n    date: new Date().toISOString(),\n    company: $json.company,\n    role: $json.role,\n    job_url: $json.job_url,\n    input_mode: $json.input_mode,\n    job_description: $json.job_description,\n    base_profile_used: $json.base_profile_used,\n    fit_score: $json.fit_score,\n    strengths: $json.strengths,\n    gaps: $json.gaps,\n    decision: 'skip',\n    reasoning: $json.reasoning,\n    message: 'Skipped because fit score is below threshold.',\n    ready_for_google_sheets: {\n      company: $json.company,\n      role: $json.role,\n      job_url: $json.job_url,\n      base_profile_used: $json.base_profile_used,\n      fit_score: $json.fit_score,\n      fit_gaps: JSON.stringify($json.gaps || []),\n      decision: 'skip'\n    }\n  }\n}];"
+      },
+      "id": "skip-output",
+      "name": "Code - Skip Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2440,
+        420
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set - Job Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set - Job Input": {
+      "main": [
+        [
+          {
+            "node": "IF - Has Job URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Has Job URL": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request - Fetch Job Page",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set - Normalize Text Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request - Fetch Job Page": {
+      "main": [
+        [
+          {
+            "node": "Code - Clean HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Clean HTML": {
+      "main": [
+        [
+          {
+            "node": "Set - Normalize URL Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set - Normalize URL Payload": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request - Score Role",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set - Normalize Text Payload": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request - Score Role",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request - Score Role": {
+      "main": [
+        [
+          {
+            "node": "Code - Parse Score JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Parse Score JSON": {
+      "main": [
+        [
+          {
+            "node": "IF - Score Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Score Gate": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request - Resume Tailor",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code - Skip Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request - Resume Tailor": {
+      "main": [
+        [
+          {
+            "node": "Code - Parse Resume",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Parse Resume": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request - Cover Letter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request - Cover Letter": {
+      "main": [
+        [
+          {
+            "node": "Code - Parse Cover Letter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Parse Cover Letter": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request - Email Writer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request - Email Writer": {
+      "main": [
+        [
+          {
+            "node": "Code - Final Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "job-application-agent-v1",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "active": false,
+  "tags": []
+}

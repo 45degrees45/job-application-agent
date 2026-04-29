@@ -1,0 +1,104 @@
+{
+  "personal": {
+    "full_name": "Joseph T C",
+    "preferred_name": "Joseph",
+    "email": "",
+    "phone": "",
+    "address": "",
+    "city": "",
+    "province_state": "",
+    "country": "India",
+    "postal_code": "",
+    "linkedin_url": "",
+    "github_url": "",
+    "portfolio_url": "",
+    "website_url": ""
+  },
+  "work_authorization": {
+    "legally_authorized_to_work": "",
+    "require_sponsorship": "",
+    "work_permit_type": ""
+  },
+  "availability": {
+    "earliest_start_date": "Immediate / negotiable",
+    "available_for_full_time": "Yes",
+    "available_for_contract": "Yes"
+  },
+  "compensation": {
+    "salary_expectation": "",
+    "salary_currency": "USD",
+    "salary_range_min": "",
+    "salary_range_max": "",
+    "currency_conversion_note": ""
+  },
+  "experience": {
+    "years_of_experience_total": "18+",
+    "education_level": "",
+    "current_job_title": "",
+    "current_company": "",
+    "target_roles": [
+      "Chief of Staff",
+      "Founder's Office",
+      "Product Manager",
+      "AI Automation"
+    ]
+  },
+  "base_profiles": {
+    "product_ai_automation": {
+      "headline": "Product and AI automation operator who builds systems end-to-end.",
+      "strengths": [
+        "Built products end-to-end",
+        "AI workflow automation with n8n and LLMs",
+        "Cross-functional product execution",
+        "Process design and operational scaling"
+      ]
+    },
+    "founders_office_strategy": {
+      "headline": "Founder-facing operator with strength in execution, structure, and high-leverage problem solving.",
+      "strengths": [
+        "Founder and operator mindset",
+        "Cross-functional execution across product and ops",
+        "International operations and logistics",
+        "Decision support, process ownership, and follow-through"
+      ]
+    }
+  },
+  "skills_boundary": {
+    "product": [
+      "Product strategy",
+      "Roadmapping",
+      "User flows",
+      "Cross-functional execution"
+    ],
+    "automation": [
+      "n8n",
+      "LLM workflows",
+      "Process automation",
+      "Prompt design"
+    ],
+    "operations": [
+      "International ops",
+      "Logistics",
+      "Execution systems",
+      "Process improvement"
+    ],
+    "tools": [
+      "Google Workspace",
+      "Telegram",
+      "Sheets",
+      "APIs"
+    ]
+  },
+  "resume_facts": {
+    "preserved_companies": [],
+    "preserved_projects": [],
+    "preserved_school": "",
+    "real_metrics": [],
+    "writing_preferences": [
+      "No fluff",
+      "Metrics over adjectives",
+      "Ownership over vague responsibility",
+      "Clear, sharp sentences"
+    ]
+  }
+}

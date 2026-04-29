@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "JosephStyleLearning",
+  "type": "object",
+  "required": [
+    "application_id",
+    "date",
+    "company",
+    "role",
+    "base_profile_used",
+    "original_output",
+    "final_output",
+    "patterns",
+    "style_guide_updates"
+  ],
+  "properties": {
+    "application_id": {
+      "type": "string"
+    },
+    "date": {
+      "type": "string"
+    },
+    "company": {
+      "type": "string"
+    },
+    "role": {
+      "type": "string"
+    },
+    "job_url": {
+      "type": "string"
+    },
+    "base_profile_used": {
+      "type": "string",
+      "enum": [
+        "product_ai_automation",
+        "founders_office_strategy"
+      ]
+    },
+    "original_output": {
+      "type": "object",
+      "properties": {
+        "resume": { "type": "string" },
+        "cover_letter": { "type": "string" },
+        "email_subject": { "type": "string" },
+        "email_body": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "final_output": {
+      "type": "object",
+      "properties": {
+        "resume": { "type": "string" },
+        "cover_letter": { "type": "string" },
+        "email_subject": { "type": "string" },
+        "email_body": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "patterns": {
+      "type": "object",
+      "properties": {
+        "avoid": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "prefer": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "structure_preferences": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "tone_preferences": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "evidence_preferences": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "style_guide_updates": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "diff_summary": {
+      "type": "string"
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    }
+  },
+  "additionalProperties": false
+}
